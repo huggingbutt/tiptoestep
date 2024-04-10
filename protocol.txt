@@ -1,0 +1,11 @@
+message_size unsigned int 16
+part_length * message_size unsigned int 32
+header
+    env_idx unsigned int 16
+    agent_idx unsigned int 16
+    message_type unsigned int 8
+    step_type unsigned int 8
+    data_type unsigned int 8
+    data_length unsigned int 32
+payload
+    data
