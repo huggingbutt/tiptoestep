@@ -1,9 +1,11 @@
+import io
+import json
 import struct
 from enum import Enum
 import numpy as np
 
 from hbagent.action import CategoricalAction, ContinuousAction, ActionSerializer
-from hbagent.utils import  StrDictionarySerializer, deserialize_from_bytes
+from hbagent.utils import StrDictionarySerializer
 
 
 class MessageType(Enum):
@@ -35,6 +37,38 @@ class Message:
         self.observation = None  # Should be an instance of Observation
         self.action = None  # This is meant to be an interface in C#, you might use a base class or protocol in Python
         self.cmds = {}  # Should be an instance of Dict<string, string>
+
+
+def observation_to_dict(byte_array):
+    """
+    Deserializes a byte array into a dictionary representing an Observation object.
+    The byte array must follow the structure defined in the C# SerializeToBytes method.
+    """
+    deserialized_data = {}
+
+    with io.BytesIO(byte_array) as stream:
+        while stream.tell() < len(byte_array):
+            # Read the length of the property name
+            name_length = struct.unpack('i', stream.read(4))[0]
+
+            # Read the property name
+            pname = stream.read(name_length).decode('utf-8')
+
+            # Read the type identifier
+            type_identifier = struct.unpack('i', stream.read(4))[0]
+
+            # Depending on the type identifier, read the value
+            if type_identifier == 0:  # float
+                value = np.float32(struct.unpack('f', stream.read(4))[0])
+            elif type_identifier == 1:  # bool
+                value = struct.unpack('?', stream.read(1))[0]
+            else:
+                raise ValueError("Unknown type identifier encountered.")
+
+            # Add the property and its value to the dictionary
+            deserialized_data[pname] = value
+
+    return deserialized_data
 
 
 class MessageSerializer:
@@ -106,14 +140,25 @@ class MessageSerializer:
         obs_len = np.int32(struct.unpack('i', data[offset:offset + 4])[0])
         offset += 4
         if obs_len > 0:
-            msg.observation = deserialize_from_bytes(data[offset:offset + obs_len])
+            msg.observation = observation_to_dict(data[offset:offset + obs_len])
 
         return msg
 
-
-
-
-
+    @staticmethod
+    def to_str(msg: Message):
+        str_ = ""
+        str_ += f"pid : {msg.pid}\n"
+        str_ += f"env_id : {msg.env_id}\n"
+        str_ += f"agent_id : {msg.agent_id}\n"
+        str_ += f"step_id : {msg.step_id}\n"
+        str_ += f"act_frame_id : {msg.act_frame_id}\n"
+        str_ += f"obs_frame_id : {msg.obs_frame_id}\n"
+        str_ += f"silent : {msg.silent}\n"
+        str_ += f"message_type : {msg.message_type}\n"
+        str_ += f"step_type : {msg.step_type}\n"
+        str_ += f"action : {msg.action}\n"
+        str_ += f"cmds : {msg.cmds}\n"
+        str_ += f"observation : {json.dumps(observation_to_dict(msg.observation))}"
 
 
 def message_serializer(obj):

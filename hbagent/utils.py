@@ -57,36 +57,7 @@ class StrDictionarySerializer:
 
         return dictionary
 
-def deserialize_from_bytes(byte_array):
-    """
-    Deserializes a byte array into a dictionary representing an Observation object.
-    The byte array must follow the structure defined in the C# SerializeToBytes method.
-    """
-    deserialized_data = {}
 
-    with io.BytesIO(byte_array) as stream:
-        while stream.tell() < len(byte_array):
-            # Read the length of the property name
-            name_length = struct.unpack('i', stream.read(4))[0]
-
-            # Read the property name
-            pname = stream.read(name_length).decode('utf-8')
-
-            # Read the type identifier
-            type_identifier = struct.unpack('i', stream.read(4))[0]
-
-            # Depending on the type identifier, read the value
-            if type_identifier == 0:  # float
-                value = np.float32(struct.unpack('f', stream.read(4))[0])
-            elif type_identifier == 1:  # bool
-                value = struct.unpack('?', stream.read(1))[0]
-            else:
-                raise ValueError("Unknown type identifier encountered.")
-
-            # Add the property and its value to the dictionary
-            deserialized_data[pname] = value
-
-    return deserialized_data
 
 
 class ObservationSerializer:
