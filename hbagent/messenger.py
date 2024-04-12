@@ -1,5 +1,6 @@
 import os
 import mmap
+from typing import Tuple
 import numpy as np
 from hbagent.proto import Message, MessageSerializer, MessageType, StepType
 
@@ -83,6 +84,16 @@ class Messenger:
         # Check for the arrival of the observation message.
         # 'agent_id' needs to be added to mark the observations seen by an agent in subsequent version.
         return self.mm[:1] == b'\x01'
+
+    def check_accident(self, raise_=False) -> Tuple[bool, str]:
+        if self.mm[:1] == b'\x05':
+            message = self.receive()
+            if (message['message_type'] == MessageType.Control.value
+                    and message['step_type'] == StepType.End.value):
+                if raise_:
+                    raise RuntimeError("Env is stopped.")
+                return True, "Env is stopped."
+        return False, ""
 
     def is_ready(self):
         while not self.check():

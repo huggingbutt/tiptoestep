@@ -7,7 +7,7 @@ class ContinuousAction:
     def __init__(self, num):
         self._data: np.ndarray = np.zeros(num, dtype=np.float32)
 
-    def __getitem__(self, index) -> np.ndarray[Any, Any]:
+    def __getitem__(self, index):
         # Include validation if necessary
         if index < 0 or index >= len(self._data):
             raise IndexError("Index out of range")
@@ -20,14 +20,13 @@ class ContinuousAction:
         self._data[index] = value
 
     @property
-    def value(self) -> np.ndarray[np.float32]:
+    def value(self):
         return self._data
 
     @value.setter
-    def value(self, val):
-        if isinstance(val, np.ndarray):
-            self._data = val.tolist()
-        elif isinstance(val, list):
+    def value(self, val: np.ndarray):
+        if (val.dtype == self._data.dtype
+                and val.shape == self._data.shape):
             self._data = val
         else:
             raise RuntimeError("Unknown action type.")

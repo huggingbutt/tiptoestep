@@ -3,6 +3,7 @@ import json
 import struct
 from enum import Enum
 import numpy as np
+from typing import Dict, Union
 
 from hbagent.action import CategoricalAction, ContinuousAction, ActionSerializer
 from hbagent.utils import StrDictionarySerializer
@@ -34,12 +35,12 @@ class Message:
         self.obs_frame_id = 0
         self.act_frame_id = 0
         self.silent: bool = False
-        self.observation = None  # Should be an instance of Observation
+        self.observation: Dict[str, Union[np.float32, bool]] = {}  # Should be a dict object
         self.action = None  # This is meant to be an interface in C#, you might use a base class or protocol in Python
         self.cmds = {}  # Should be an instance of Dict<string, string>
 
 
-def observation_to_dict(byte_array):
+def observation_to_dict(byte_array) -> Dict[str, Union[np.float32, bool]]:
     """
     Deserializes a byte array into a dictionary representing an Observation object.
     The byte array must follow the structure defined in the C# SerializeToBytes method.
@@ -91,23 +92,23 @@ class MessageSerializer:
             data += struct.pack('i', len(action_bytes))
             data += action_bytes
 
-        print(len(data))
+        # print(len(data))
 
         if msg.cmds is None:
             data += struct.pack('i', 0)
         else:
             cmds_bytes = StrDictionarySerializer.serialize(msg.cmds)
-            print(len(cmds_bytes))
+            # print(len(cmds_bytes))
             data += struct.pack('i', len(cmds_bytes))
             data += cmds_bytes
 
-        if msg.observation is None:
+        if len(msg.observation) <= 0:
             data += struct.pack('i', 0)
         else:
             data += struct.pack('i', len(msg.observation))
             data += msg.observation
 
-        print(len(data))
+        # print(len(data))
 
         return data
 

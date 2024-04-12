@@ -1,25 +1,23 @@
-import os
 import subprocess
-import time
-
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 from collections import namedtuple
 from typing import Any
-from hbagent.messenger2 import Messenger
-from hbagent.action import ContinuousAction
+from hbagent.proto import Message
+from hbagent.messenger import Messenger
 from hbagent.utils import create_default_mmf
 
 
 class Env(gym.Env):
-    def __init__(self, pid, env_id, agent, time_scale=1, max_steps=10000, mmf=None, exe_file=None):
+    def __init__(self, pid, env_id, agent, action, time_scale=1, max_steps=10000, mmf=None, exe_file=None):
         super(Env, self).__init__()
         self.pid = pid
         self.env_id = env_id
         self.agent = agent
         self.time_scale = time_scale
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float64)
+        self.action = action
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
         self.observation_space = spaces.Box(low=-np.infty, high=np.infty, shape=(26,), dtype=np.float64)
         self.step_id = 0
         self.max_steps = max_steps
@@ -55,14 +53,14 @@ class Env(gym.Env):
         if not self.messenger.is_ready():
             raise RuntimeError("Environment initialization failed!!")
 
-    def processing_message(self, message, reset=False, check_sync=True):
+    def processing_message(self, msg: Message, reset=False, check_sync=True):
         # pid = message['pid']
         # env_id = message['env_id']
         # agent_id = message['agent_id']
         # print(f"RECEIVED:{message}")
         info = {}
         self.cmds = {}
-        step_id = message['step_id']
+        step_id = msg.step_id
         if check_sync:
             # print(f"New observation step_id:{step_id}, env step_id:{self.step_id}.")
             if not reset:
@@ -71,7 +69,7 @@ class Env(gym.Env):
             else:
                 assert step_id == 0, "Step id is not 0."
 
-        obs_dict = message['observation']
+        obs_dict = msg.observation
         Observation = namedtuple('Observation', obs_dict.keys())
         obs = Observation(**obs_dict)
         # Calculate current step reward using one user's reward_fun
@@ -99,12 +97,13 @@ class Env(gym.Env):
 
         return obs_processed, self.step_reward, terminated, truncated, info
 
-    def step(self, action):
-        self.messenger.check_accident(raise_=True)
-        con_action = ContinuousAction(len(action))
-        con_action.value = action
+    def step(self, action: np.ndarray):
+        # self.messenger.check_accident(raise_=True)
+        # con_action = ContinuousAction(len(action))
+        self.action.value = action
+
         # print(self.cmds)
-        self.messenger.send_action(self.agent.id, self.step_id, con_action, self.cmds)
+        self.messenger.send_action(self.agent.id, self.step_id, self.action, self.cmds)
 
         # while not self.messenger.check_consume():
         #     # Waiting for current action message to be consumed by C#
@@ -126,7 +125,7 @@ class Env(gym.Env):
         if truncated is False and self.step_id >= self.max_steps:
             truncated = True
 
-        self.step_id = obs_messge['step_id']
+        self.step_id = obs_messge.step_id
         # print(f"New Step ID {self.step_id}")
         self.total_reward += step_reward
         self.step_reward = 0
@@ -139,7 +138,7 @@ class Env(gym.Env):
               ):
         self.messenger.check_accident(raise_=True)
         # print(self.cmds)
-        self.messenger.send_control(self.agent.id, 'reset', self.cmds)
+        self.messenger.send_control(self.agent.id, self.step_id, 'reset', self.cmds)
         # while not self.messenger.check_consume():
         #     pass
 
@@ -150,12 +149,13 @@ class Env(gym.Env):
         # Current version supports only one agent. agent id is 0.
 
         obs_processed, step_reward, terminated, truncated, info = self.processing_message(obs_message, reset=True)
-        self.step_id = obs_message['step_id']
+        self.step_id = obs_message.step_id
         return np.array(obs_processed), info
 
     def close(self):
-        self.messenger.send_control(self.agent.id, 'end')
+        self.messenger.send_control(self.agent.id, self.step_id,'end')
         while not self.messenger.check():
+            pass
             pass
         self.messenger.close()
         if self.exe_file is not None and self.process is not None:
@@ -163,6 +163,8 @@ class Env(gym.Env):
             print(f"output:{stdout}")
             self.process.terminate()
             self.process.wait()
+
+
 
 
 # roller ball's reward function
@@ -258,8 +260,3 @@ def transform_fun(obs):
 #         obs.player_velocity_y,
 #         obs.player_velocity_z
 #     ])
-
-
-class EnvBuild:
-    def __init__(self):
-        pass
