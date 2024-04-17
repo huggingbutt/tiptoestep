@@ -68,7 +68,7 @@ def make_env(pid):
     return _init
 
 
-def make_a_env():
+def create_env():
     action = ContinuousAction(2)
     action_space = spaces.Box(low=-1.0, high=1.0, shape=(len(action),), dtype=np.float32)
     observation_space = spaces.Box(low=-np.infty, high=np.infty, shape=(12,), dtype=np.float32)
@@ -91,7 +91,6 @@ def make_a_env():
 if __name__ == '__main__':
     envs = [make_env(pid) for pid in range(4)]
     env = SubprocVecEnv(envs)
-    # env = make_a_env()
     model = PPO(
         "MlpPolicy",
         env,
