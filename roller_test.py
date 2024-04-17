@@ -44,8 +44,7 @@ def control_fun(obs) -> Dict[str, str]:
     return response
 
 
-# exe_file = "/Users/admin/libs/Juggle/roller_ball/roller_ball.app/Contents/MacOS/rollerball"
-exe_file = "/Users/admin/libs/Juggle/roller_server/roller_server/rollerball"
+exe_file = "your_env_path/roller_ball/roller_ball.app/Contents/MacOS/rollerball"
 
 
 def make_env(pid):
