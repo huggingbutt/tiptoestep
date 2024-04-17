@@ -25,11 +25,19 @@ class ContinuousAction:
 
     @value.setter
     def value(self, val: np.ndarray):
-        if (val.dtype == self._data.dtype
-                and val.shape == self._data.shape):
+        # print(f"Step Action: {val}")
+        if (type(val) == list
+                and len(val) == self._data.shape[0]):
+            self._data = np.array(val, dtype=np.float32)
+        elif (type(val) == np.ndarray
+              and val.shape == self._data.shape
+              and val.dtype == np.float32 ):
             self._data = val
         else:
             raise RuntimeError("Unknown action type.")
+
+    def __len__(self):
+        return self._data.shape[0]
 
 
 class CategoricalAction:
@@ -57,6 +65,9 @@ class CategoricalAction:
             # Using f-string for string formatting
             raise ValueError(f"Value must be in [{', '.join(map(str, self._values))}]")
         self._value = val
+
+    def __len__(self):
+        return len(self._values)
 
     def get_value_type(self):
         # This method will return the type of the first element in the set,

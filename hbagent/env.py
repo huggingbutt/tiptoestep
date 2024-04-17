@@ -1,24 +1,47 @@
+import os.path
 import subprocess
+import time
+
 import numpy as np
 import gymnasium as gym
-from gymnasium import spaces
 from collections import namedtuple
-from typing import Any
+from typing import Any, Union, Callable, Dict, Type
+from hbagent.action import ContinuousAction, CategoricalAction
+from hbagent.agent import Agent
 from hbagent.proto import Message
 from hbagent.messenger import Messenger
 from hbagent.utils import create_default_mmf
 
 
+# todo
+def check_function(function: Callable, input_t: Type, out_t: Type) -> bool:
+    # Check if user-provided function meets the requirements.
+    return True
+
+
 class Env(gym.Env):
-    def __init__(self, pid, env_id, agent, action, time_scale=1, max_steps=10000, mmf=None, exe_file=None):
+    def __init__(self,
+                 action: Union[ContinuousAction, CategoricalAction],
+                 action_space,
+                 observation_space,
+                 transform_fun: Callable,
+                 reward_fun: Callable,
+                 control_fun: Callable,
+                 pid=0,
+                 env_id=0,
+                 agent: Agent = None,
+                 time_scale=1,
+                 max_steps=10000,
+                 mmf=None,
+                 exe_file=None):
         super(Env, self).__init__()
         self.pid = pid
         self.env_id = env_id
-        self.agent = agent
+        self.agent = Agent(0) if agent is None else agent
         self.time_scale = time_scale
         self.action = action
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=-np.infty, high=np.infty, shape=(26,), dtype=np.float64)
+        self.action_space = action_space
+        self.observation_space = observation_space
         self.step_id = 0
         self.max_steps = max_steps
         self.total_reward = 0.0
@@ -27,20 +50,16 @@ class Env(gym.Env):
         self.truncated = False
         self.cmds = {}
         self.env_running = True
-        if mmf:
+        self.reward_fun = reward_fun
+        self.control_fun = control_fun
+        self.transform_fun = transform_fun
+
+        if mmf and os.path.isfile(mmf):
             self.mmf = mmf
         else:
             self.mmf = create_default_mmf(pid, env_id)
 
         self.messenger = Messenger(self.mmf)
-
-        # self.env_obs_key = f"hb_observation_{pid}_{env_id}"
-        # self.env_act_key = f"hb_action_{pid}_{env_id}"
-        # self.env_accident_key = f"hb_accident_{pid}_{env_id}"
-
-        # self.messenger.clear(self.env_obs_key)
-        # self.messenger.clear(self.env_act_key)
-        # self.messenger.clear(self.env_accident_key)
 
         self.exe_file = None
 
@@ -73,9 +92,9 @@ class Env(gym.Env):
         Observation = namedtuple('Observation', obs_dict.keys())
         obs = Observation(**obs_dict)
         # Calculate current step reward using one user's reward_fun
-        self.step_reward = reward_fun(obs)
+        self.step_reward = self.reward_fun(obs)
 
-        response = control_fun(obs)
+        response = self.control_fun(obs)
         if 'terminated' in response and response['terminated']:
             terminated = True
         else:
@@ -93,7 +112,7 @@ class Env(gym.Env):
                 self.cmds[k] = v
                 info[k] = v
 
-        obs_processed = transform_fun(obs)
+        obs_processed = self.transform_fun(obs)
 
         return obs_processed, self.step_reward, terminated, truncated, info
 
@@ -153,10 +172,7 @@ class Env(gym.Env):
         return np.array(obs_processed), info
 
     def close(self):
-        self.messenger.send_control(self.agent.id, self.step_id,'end')
-        while not self.messenger.check():
-            pass
-            pass
+        self.messenger.send_control(self.agent.id, self.step_id, 'end')
         self.messenger.close()
         if self.exe_file is not None and self.process is not None:
             stdout, stderr = self.process.communicate()
@@ -176,76 +192,76 @@ class Env(gym.Env):
 #         return 0.0
 
 
-def reward_fun(obs):
-    # reward = 0.0
-    # if obs.diff > 0 >= obs.previous_diff and obs.collied is True:
-    #     reward += 1.0
-    #
-    # print(np.sqrt(obs.ball_position_x ** 2 + obs.ball_position_z ** 2) / 14)
-    # return reward
-    step_reward = 0.0
-    if obs.diff > 0 > obs.previous_diff and obs.collied is True:
-        step_reward += 1
-
-    # step_reward -= np.sqrt(obs.ball_position_x ** 2 + obs.ball_position_z ** 2) / 14
-    return step_reward
-
-
-def control_fun(obs):
-    response = {}
-    if (obs.ball_position_y <= 1.5
-            # or obs.player_position_y <= 0
-            or abs(obs.player_position_x) >= 10
-            or abs(obs.player_position_z) >= 10):
-        response['terminated'] = True
-    return response
-
-
-# roller ball 's control_fun
-# def feedback_fun(obs):
-#     # Game terminated if target-player distance < 1.42 or player's y < 0
-#     # The game terminated if either distance between the target and player is less than 1.42,
-#     # or if the player's y-coordinate falls below zero.
+# def reward_fun(obs):
+#     # reward = 0.0
+#     # if obs.diff > 0 >= obs.previous_diff and obs.collied is True:
+#     #     reward += 1.0
+#     #
+#     # print(np.sqrt(obs.ball_position_x ** 2 + obs.ball_position_z ** 2) / 14)
+#     # return reward
+#     step_reward = 0.0
+#     if obs.diff > 0 > obs.previous_diff and obs.collied is True:
+#         step_reward += 1
+#
+#     # step_reward -= np.sqrt(obs.ball_position_x ** 2 + obs.ball_position_z ** 2) / 14
+#     return step_reward
+#
+#
+# def control_fun(obs):
 #     response = {}
-#     if obs.distance <= 1.42:
+#     if (obs.ball_position_y <= 1.5
+#             # or obs.player_position_y <= 0
+#             or abs(obs.player_position_x) >= 10
+#             or abs(obs.player_position_z) >= 10):
 #         response['terminated'] = True
-#
-#     if obs.player_position_y <= 0:
-#         response['terminated'] = True
-#         response['re-entry'] = True
-#
 #     return response
-
-
-def transform_fun(obs):
-    return np.array([
-        obs.ball_position_x,
-        obs.ball_position_y,
-        obs.ball_position_z,
-        obs.ball_velocity_x,
-        obs.ball_velocity_y,
-        obs.ball_velocity_z,
-        obs.ball_rotation_x,
-        obs.ball_rotation_y,
-        obs.ball_rotation_z,
-        obs.ball_rotation_w,
-        obs.ball_angular_velocity_x,
-        obs.ball_angular_velocity_y,
-        obs.ball_angular_velocity_z,
-        obs.player_position_x,
-        obs.player_position_y,
-        obs.player_position_z,
-        obs.player_velocity_x,
-        obs.player_velocity_y,
-        obs.player_velocity_z,
-        obs.player_rotation_x,
-        obs.player_rotation_y,
-        obs.player_rotation_z,
-        obs.player_rotation_w,
-        obs.player_angular_velocity_x,
-        obs.player_angular_velocity_y,
-        obs.player_angular_velocity_z
-    ])
+#
+#
+# # roller ball 's control_fun
+# # def feedback_fun(obs):
+# #     # Game terminated if target-player distance < 1.42 or player's y < 0
+# #     # The game terminated if either distance between the target and player is less than 1.42,
+# #     # or if the player's y-coordinate falls below zero.
+# #     response = {}
+# #     if obs.distance <= 1.42:
+# #         response['terminated'] = True
+# #
+# #     if obs.player_position_y <= 0:
+# #         response['terminated'] = True
+# #         response['re-entry'] = True
+# #
+# #     return response
+#
+#
+# def transform_fun(obs):
+#     return np.array([
+#         obs.ball_position_x,
+#         obs.ball_position_y,
+#         obs.ball_position_z,
+#         obs.ball_velocity_x,
+#         obs.ball_velocity_y,
+#         obs.ball_velocity_z,
+#         obs.ball_rotation_x,
+#         obs.ball_rotation_y,
+#         obs.ball_rotation_z,
+#         obs.ball_rotation_w,
+#         obs.ball_angular_velocity_x,
+#         obs.ball_angular_velocity_y,
+#         obs.ball_angular_velocity_z,
+#         obs.player_position_x,
+#         obs.player_position_y,
+#         obs.player_position_z,
+#         obs.player_velocity_x,
+#         obs.player_velocity_y,
+#         obs.player_velocity_z,
+#         obs.player_rotation_x,
+#         obs.player_rotation_y,
+#         obs.player_rotation_z,
+#         obs.player_rotation_w,
+#         obs.player_angular_velocity_x,
+#         obs.player_angular_velocity_y,
+#         obs.player_angular_velocity_z
+#     ])
 
 # roller ball's transform function
 # def processed_obs_fun(obs):

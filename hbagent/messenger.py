@@ -112,6 +112,3 @@ class Messenger:
 
         if os.path.exists(self.filename):
             os.remove(self.filename)
-
-
-

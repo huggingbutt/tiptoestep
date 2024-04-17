@@ -1,7 +1,7 @@
 from hbagent.action import ActionSerializer, ContinuousAction, CategoricalAction
 import mmap
 import numpy as np
-from hbagent.proto import Message, MessageSerializer, MessageType, StepType
+from hbagent.proto import Message, MessageSerializer
 from hbagent.utils import StrDictionarySerializer
 import struct
 

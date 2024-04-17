@@ -14,6 +14,7 @@ def create_default_mmf(pid, env_id):
     mmf = os.path.join(real_cache_path, f"{pid}_{env_id}.mmf")
     parent_path = os.path.dirname(real_cache_path)
     Path(parent_path).mkdir(parents=True, exist_ok=True)
+    print(f"mmf:{mmf}")
     return mmf
 
 
@@ -58,14 +59,7 @@ class StrDictionarySerializer:
         return dictionary
 
 
-
-
 class ObservationSerializer:
     @staticmethod
-    def deseriazlie(byte_array): # return
+    def deserialize(byte_array):  # return
         pass
-
-
-
-        # Observation = namedtuple('Observation', obs_dict.keys())
-        # obs = Observation(**obs_dict)
