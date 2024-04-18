@@ -1,13 +1,45 @@
 import os
 import io
 import struct
+import ast
 from pathlib import Path
-import numpy as np
-from typing import Optional, Dict
-from collections import namedtuple
+
 
 cache_path = "~/.cache/hbagent"
 real_cache_path = os.path.expanduser(cache_path)
+
+
+def load_custom_functions(file_name: str):
+    print("pacakge", os.getcwd())
+    print("package", os.path.abspath(file_name))
+    if not os.path.isfile(file_name):
+        raise RuntimeError(f"{file_name} not exists.")
+
+    with open(file_name, 'r') as file:
+        function_string = file.read()
+
+    # Parse the string to an AST
+    function_ast = ast.parse(function_string)
+    compiled_code = compile(function_ast, filename="<ast>", mode="exec")
+
+    # Execute the compiled code in the global namespace
+    exec(compiled_code, globals())
+
+    for fun in ['transform_fun', 'reward_fun', 'control_fun']:
+        if fun not in globals():
+            raise RuntimeError(f"'{fun}' not found in your file.")
+
+    transform_fun = globals()['transform_fun']
+    reward_fun = globals()['reward_fun']
+    control_fun = globals()['control_fun']
+
+    return transform_fun, reward_fun, control_fun
+
+
+
+
+
+
 
 
 def create_default_mmf(pid, env_id):
