@@ -10,6 +10,7 @@ from hbagent.messenger import Messenger
 from hbagent.proto import Message, MessageType, StepType, message_serializer
 from hbagent.action import ContinuousAction, CategoricalAction
 
+
 class BaseEnv(gym.Env):
     def __init__(self, pid, env_id, agent_id):
         super(BaseEnv, self).__init__()
@@ -69,7 +70,6 @@ class BaseEnv(gym.Env):
         return obs_processed, self.step_reward, terminated, truncated, info
 
     def step(self, action):
-
         self.check_accident()
         if not self.env_running:
             raise RuntimeError("Environment inactive. Please recreate.")
@@ -149,6 +149,9 @@ class BaseEnv(gym.Env):
 
     def close(self):
         self._clear()
+
+    def check_accident(self):
+        pass
 
 
 def reward(obs):
