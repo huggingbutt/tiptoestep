@@ -1,0 +1,17 @@
+{
+  "name": "com.huggingbutt.hbagents",
+  "version": "0.0.1",
+  "displayName": "hbagents",
+  "description": "This is an reinforcement learning package.",
+  "unity": "2022.3",
+  "unityRelease": "10f1",
+  "documentationUrl": "https://huggingbutt.com/",
+  "changelogUrl": "https://huggingbutt.com/",
+  "licensesUrl": "https://huggingbutt.com/",
+  "dependencies": {},
+  "author": {
+    "name": "huggingbutt",
+    "email": "huggingbutt@outlook.com",
+    "url": "https://huggingbutt.com"
+  }
+}
