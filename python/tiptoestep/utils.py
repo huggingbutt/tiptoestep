@@ -5,7 +5,7 @@ import ast
 from pathlib import Path
 
 
-cache_path = "~/.cache/hbagent"
+cache_path = "~/.cache/tiptoestep"
 real_cache_path = os.path.expanduser(cache_path)
 
 

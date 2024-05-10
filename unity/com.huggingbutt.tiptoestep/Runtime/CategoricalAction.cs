@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace hbagent
+namespace tiptoestep
 {
     public class CategoricalAction<T> : Action
     {

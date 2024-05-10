@@ -6,9 +6,9 @@ from gymnasium import spaces
 from collections import namedtuple
 from stable_baselines3 import PPO
 from typing import Any
-from hbagent.messenger import Messenger
-from hbagent.proto import Message, MessageType, StepType, message_serializer
-from hbagent.action import ContinuousAction, CategoricalAction
+from messenger import Messenger
+from proto import Message, MessageType, StepType, message_serializer
+from action import ContinuousAction, CategoricalAction
 
 
 class BaseEnv(gym.Env):

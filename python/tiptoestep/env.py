@@ -1,16 +1,14 @@
 import os.path
 import subprocess
-import time
-
 import numpy as np
 import gymnasium as gym
 from collections import namedtuple
 from typing import Any, Union, Callable, Dict, Type
-from hbagent.action import ContinuousAction, CategoricalAction
-from hbagent.agent import Agent
-from hbagent.proto import Message
-from hbagent.messenger import Messenger
-from hbagent.utils import create_default_mmf
+from action import ContinuousAction, CategoricalAction
+from agent import Agent
+from proto import Message
+from messenger import Messenger
+from utils import create_default_mmf
 
 
 # todo

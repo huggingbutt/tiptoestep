@@ -12,7 +12,7 @@ using System.IO.MemoryMappedFiles;
 // 0x07 writing by Python
 
 
-namespace hbagent
+namespace tiptoestep
 {
     public class Messenger : IDisposable
     {

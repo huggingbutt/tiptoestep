@@ -1,6 +1,6 @@
 using System;
 
-namespace hbagent
+namespace tiptoestep
 {
     public class ContinuousAction : Action
     {

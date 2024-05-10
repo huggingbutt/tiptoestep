@@ -2,7 +2,7 @@ import os
 import mmap
 from typing import Tuple
 import numpy as np
-from hbagent.proto import Message, MessageSerializer, MessageType, StepType
+from proto import Message, MessageSerializer, MessageType, StepType
 
 
 class Messenger:

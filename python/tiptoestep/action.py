@@ -1,6 +1,5 @@
 import numpy as np
 import struct
-from typing import List, Any
 
 
 class ContinuousAction:

@@ -1,4 +1,4 @@
-namespace hbagent
+namespace tiptoestep
 {
     public enum MessageType
     {

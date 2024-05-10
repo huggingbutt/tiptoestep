@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace hbagent
+namespace tiptoestep
 {
     public abstract class Agent : MonoBehaviour
     {
