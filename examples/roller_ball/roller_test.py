@@ -1,9 +1,9 @@
 import numpy as np
 from stable_baselines3 import PPO
 
-from hbagent.env import Env
-from hbagent.action import ContinuousAction
-from hbagent.utils import load_custom_functions
+from tiptoestep.env import Env
+from tiptoestep.action import ContinuousAction
+from tiptoestep.utils import load_custom_functions
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from gymnasium import spaces

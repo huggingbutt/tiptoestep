@@ -2,7 +2,8 @@
 .idea
 **/.ipynb_checkpoints/*
 **/*.ipynb
-*.ipynb
 **/*.pyc
 modles/*.zip
 logs
+**/build
+**/**-info
