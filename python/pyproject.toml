@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tiptoestep"
+version = "0.0.1a"
+authors = [
+  { name="huggingbutt", email="huggingbutt@outlook.com" },
+]
+description = "A reinforcement learning pakcage."
+readme = "README.md"
+requires-python = ">=3.9.0"
+dependencies = [
+    "numpy>=1.24.4",
+    "gymnasium>=0.28.1",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence"
+]
+
+[project.urls]
+homepage = "https://huggingbutt.com"
+source  = "https://github.com/huggingbutt/tiptoestep"
