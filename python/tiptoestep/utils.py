@@ -9,16 +9,22 @@ cache_path = "~/.cache/tiptoestep"
 real_cache_path = os.path.expanduser(cache_path)
 
 
+def check_cache():
+    if not os.path.exists(real_cache_path):
+        os.makedirs(real_cache_path)
+
+
 def load_custom_functions(file_name: str):
-    print("pacakge", os.getcwd())
-    print("package", os.path.abspath(file_name))
-    if not os.path.isfile(file_name):
-        raise RuntimeError(f"{file_name} not exists.")
+    if not os.path.isabs(file_name):
+        file_name = os.path.abspath(file_name)
+    assert os.path.isfile(file_name), f"{file_name} does not exist."
 
     with open(file_name, 'r') as file:
         function_string = file.read()
 
     # Parse the string to an AST
+    # todo...
+    # Need to verify code security.
     function_ast = ast.parse(function_string)
     compiled_code = compile(function_ast, filename="<ast>", mode="exec")
 
@@ -34,12 +40,6 @@ def load_custom_functions(file_name: str):
     control_fun = globals()['control_fun']
 
     return transform_fun, reward_fun, control_fun
-
-
-
-
-
-
 
 
 def create_default_mmf(pid, env_id):

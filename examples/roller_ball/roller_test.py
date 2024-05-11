@@ -10,9 +10,27 @@ from gymnasium import spaces
 
 
 my_function_file = "my_functions.py"
-exe_file = None
+exe_file = "/Users/admin/codes/csharp/hbagent/rollerball_tiptoestep/roller_ball/rollerball2"
 
 transform_fun, reward_fun, control_fun = load_custom_functions(my_function_file)
+
+
+def make_an_env():
+    action = ContinuousAction(2)
+    action_space = spaces.Box(low=-1.0, high=1.0, shape=(len(action),), dtype=np.float32)
+    observation_space = spaces.Box(low=-np.infty, high=np.infty, shape=(12,), dtype=np.float32)
+    myenv = Env(pid=0,
+                action=action,
+                action_space=action_space,
+                observation_space=observation_space,
+                transform_fun=transform_fun,
+                reward_fun=reward_fun,
+                control_fun=control_fun,
+                time_scale=20,
+                exe_file=exe_file
+                )
+    myenv = Monitor(myenv)
+    return myenv
 
 
 def make_env(pid):
@@ -37,8 +55,10 @@ def make_env(pid):
 
 
 if __name__ == '__main__':
-    envs = [make_env(pid) for pid in range(4)]
-    env = SubprocVecEnv(envs)
+    # envs = [make_env(pid) for pid in range(4)]
+    # env = SubprocVecEnv(envs)
+    env = make_an_env()
+
     model = PPO(
         "MlpPolicy",
         env,
