@@ -7,3 +7,4 @@ modles/*.zip
 logs
 **/build
 **/**-info
+**/**.meta

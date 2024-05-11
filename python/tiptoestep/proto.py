@@ -5,8 +5,8 @@ from enum import Enum
 import numpy as np
 from typing import Dict, Union
 
-from action import CategoricalAction, ContinuousAction, ActionSerializer
-from utils import StrDictionarySerializer
+from .action import CategoricalAction, ContinuousAction, ActionSerializer
+from .utils import StrDictionarySerializer
 
 
 class MessageType(Enum):

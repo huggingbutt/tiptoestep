@@ -4,11 +4,11 @@ import numpy as np
 import gymnasium as gym
 from collections import namedtuple
 from typing import Any, Union, Callable, Dict, Type
-from action import ContinuousAction, CategoricalAction
-from agent import Agent
-from proto import Message
-from messenger import Messenger
-from utils import create_default_mmf
+from .action import ContinuousAction, CategoricalAction
+from .agent import Agent
+from .proto import Message
+from .messenger import Messenger
+from .utils import create_default_mmf
 
 
 # todo
@@ -177,100 +177,3 @@ class Env(gym.Env):
             print(f"output:{stdout}")
             self.process.terminate()
             self.process.wait()
-
-
-
-
-# roller ball's reward function
-
-# def reward_fun(obs):
-#     if obs.distance <= 1.42:
-#         return 1.0
-#     else:
-#         return 0.0
-
-
-# def reward_fun(obs):
-#     # reward = 0.0
-#     # if obs.diff > 0 >= obs.previous_diff and obs.collied is True:
-#     #     reward += 1.0
-#     #
-#     # print(np.sqrt(obs.ball_position_x ** 2 + obs.ball_position_z ** 2) / 14)
-#     # return reward
-#     step_reward = 0.0
-#     if obs.diff > 0 > obs.previous_diff and obs.collied is True:
-#         step_reward += 1
-#
-#     # step_reward -= np.sqrt(obs.ball_position_x ** 2 + obs.ball_position_z ** 2) / 14
-#     return step_reward
-#
-#
-# def control_fun(obs):
-#     response = {}
-#     if (obs.ball_position_y <= 1.5
-#             # or obs.player_position_y <= 0
-#             or abs(obs.player_position_x) >= 10
-#             or abs(obs.player_position_z) >= 10):
-#         response['terminated'] = True
-#     return response
-#
-#
-# # roller ball 's control_fun
-# # def feedback_fun(obs):
-# #     # Game terminated if target-player distance < 1.42 or player's y < 0
-# #     # The game terminated if either distance between the target and player is less than 1.42,
-# #     # or if the player's y-coordinate falls below zero.
-# #     response = {}
-# #     if obs.distance <= 1.42:
-# #         response['terminated'] = True
-# #
-# #     if obs.player_position_y <= 0:
-# #         response['terminated'] = True
-# #         response['re-entry'] = True
-# #
-# #     return response
-#
-#
-# def transform_fun(obs):
-#     return np.array([
-#         obs.ball_position_x,
-#         obs.ball_position_y,
-#         obs.ball_position_z,
-#         obs.ball_velocity_x,
-#         obs.ball_velocity_y,
-#         obs.ball_velocity_z,
-#         obs.ball_rotation_x,
-#         obs.ball_rotation_y,
-#         obs.ball_rotation_z,
-#         obs.ball_rotation_w,
-#         obs.ball_angular_velocity_x,
-#         obs.ball_angular_velocity_y,
-#         obs.ball_angular_velocity_z,
-#         obs.player_position_x,
-#         obs.player_position_y,
-#         obs.player_position_z,
-#         obs.player_velocity_x,
-#         obs.player_velocity_y,
-#         obs.player_velocity_z,
-#         obs.player_rotation_x,
-#         obs.player_rotation_y,
-#         obs.player_rotation_z,
-#         obs.player_rotation_w,
-#         obs.player_angular_velocity_x,
-#         obs.player_angular_velocity_y,
-#         obs.player_angular_velocity_z
-#     ])
-
-# roller ball's transform function
-# def processed_obs_fun(obs):
-#     return np.array([
-#         obs.target_position_x,
-#         obs.target_position_y,
-#         obs.target_position_z,
-#         obs.player_position_x,
-#         obs.player_position_y,
-#         obs.player_position_z,
-#         obs.player_velocity_x,
-#         obs.player_velocity_y,
-#         obs.player_velocity_z
-#     ])

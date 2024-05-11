@@ -10,7 +10,7 @@ from gymnasium import spaces
 
 
 my_function_file = "my_functions.py"
-exe_file = "rollerball_path"
+exe_file = None
 
 transform_fun, reward_fun, control_fun = load_custom_functions(my_function_file)
 
