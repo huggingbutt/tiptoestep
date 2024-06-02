@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using System.IO;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -15,7 +16,7 @@ namespace tiptoestep
         public string debug_mmf;
         public Text textPlaceholder;
         bool renderFlag = false;
-        private Message tempMsg; // For all 'PostXXXX' function.
+        private Message tempMsg; // todo? For all 'PostXXXX' function. 
 
         Messenger messenger;
         public Agent agent;
@@ -84,10 +85,26 @@ namespace tiptoestep
             messenger = new Messenger(this.mmf);
         }
 
+        void WriteToLogFile(string message)
+        {
+            DateTime now = DateTime.Now;
+            string timestamp = now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+            string path = Path.Combine(Application.dataPath.Split("Contents")[0], "log.txt");
+            StreamWriter writer = new StreamWriter(path, true);
+            writer.WriteLine($"{timestamp} -- {message}");
+            writer.Close();
+        }
+
         // Start is called before the first frame update
         void Start()
         {
-            this.messenger.SendReady(this.env_id, this.pid);       
+#if LOG_TO_FILE
+            WriteToLogFile($"{this.pid}_{this.env_id} Sending ready.");
+#endif
+            this.messenger.SendReady(this.env_id, this.pid);
+#if LOG_TO_FILE
+            WriteToLogFile($"{this.pid}_{this.env_id} Sent ready.");
+#endif
         }
 
 
@@ -133,8 +150,8 @@ namespace tiptoestep
                     this.agent.PreStep(actionMsg.cmds);
                     this.agent.Step(actionMsg.action);
                     this.agent.PostStep(actionMsg.cmds); // The term 'Post' in the function name 'PostStep' may cause confusion.
-                                                         // Does executing the 'PostStep' function after the 'Step' function mean it
-                                                         // occurs after one step of physical simulation?
+                                                         // Does executing the 'PostStep' function after the 'Step' function mean
+                                                         // it occurs after one step of physical simulation?
                 }
 
                 if (actionMsg.message_type == MessageType.Control

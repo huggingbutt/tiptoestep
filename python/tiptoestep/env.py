@@ -1,5 +1,7 @@
 import os.path
 import subprocess
+import time
+
 import numpy as np
 import gymnasium as gym
 from collections import namedtuple
@@ -20,22 +22,24 @@ def check_function(function: Callable, input_t: Type, out_t: Type) -> bool:
 class Env(gym.Env):
     def __init__(self,
                  action: Union[ContinuousAction, CategoricalAction],
-                 action_space,
-                 observation_space,
-                 transform_fun: Callable,
-                 reward_fun: Callable,
-                 control_fun: Callable,
+                 action_space: gym.Space,
+                 observation_space: gym.Space,
+                 transform_fun=None,
+                 reward_fun=None,
+                 control_fun=None,
+                 fun_code=None,
                  pid=0,
                  env_id=0,
                  agent: Agent = None,
                  time_scale=1,
-                 max_steps=10000,
+                 max_steps=10_000,
                  mmf=None,
-                 exe_file=None):
+                 exe_file=None,
+                 verbose=0):
         super(Env, self).__init__()
         self.pid = pid
         self.env_id = env_id
-        self.agent = Agent(0) if agent is None else agent
+        self.agent = agent if agent is not None else Agent(0)
         self.time_scale = time_scale
         self.action = action
         self.action_space = action_space
@@ -51,6 +55,15 @@ class Env(gym.Env):
         self.reward_fun = reward_fun
         self.control_fun = control_fun
         self.transform_fun = transform_fun
+        self.verbose = verbose
+
+        # custom function
+        if fun_code is not None:
+            exec(fun_code, globals())
+
+        self.reward_fun = reward_fun if reward_fun is not None else globals()['reward_fun']
+        self.control_fun = control_fun if control_fun is not None else globals()['control_fun']
+        self.transform_fun = transform_fun if transform_fun is not None else globals()['transform_fun']
 
         if mmf and os.path.isfile(mmf):
             self.mmf = mmf
@@ -60,6 +73,7 @@ class Env(gym.Env):
         self.messenger = Messenger(self.mmf)
 
         self.exe_file = None
+        self.process = None
 
         if exe_file:
             self.exe_file = [exe_file, f"-pid={self.pid}", f"-env_id={self.env_id}", f"-mmf={self.mmf}"]
@@ -170,10 +184,16 @@ class Env(gym.Env):
         return np.array(obs_processed), info
 
     def close(self):
-        self.messenger.send_control(self.agent.id, self.step_id, 'end')
-        self.messenger.close()
+        if not self.messenger.mm.closed:
+            self.messenger.send_control(self.agent.id, self.step_id, 'end')
+            self.messenger.close()
         if self.exe_file is not None and self.process is not None:
             stdout, stderr = self.process.communicate()
-            print(f"output:{stdout}")
+            if self.verbose > 0:
+                print(f"Env {self.pid}_{self.env_id} {stdout.decode()} {stderr.decode()}")
             self.process.terminate()
             self.process.wait()
+
+    def __del__(self):
+        self.close()
+

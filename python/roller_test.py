@@ -10,7 +10,7 @@ from gymnasium import spaces
 
 
 my_function_file = "my_functions.py"
-exe_file = "ENVIRONMENT_FILE"
+exe_file = "/Users/admin/codes/csharp/hbagent/rollerball_tiptoestep/roller_ball/rollerball2"
 
 transform_fun, reward_fun, control_fun = load_custom_functions(my_function_file)
 
@@ -55,18 +55,18 @@ def make_env(pid):
 
 
 if __name__ == '__main__':
-    envs = [make_env(pid) for pid in range(3)]
-    env = SubprocVecEnv(envs)
-    # env = make_an_env()
+    # envs = [make_env(pid) for pid in range(4)]
+    # env = SubprocVecEnv(envs)
+    env = make_an_env()
 
     model = PPO(
         "MlpPolicy",
         env,
         verbose=1,
-        n_steps=512,
+        n_steps=256,
         tensorboard_log="./logs")
 
-    model.learn(total_timesteps=1_000_000)
+    model.learn(total_timesteps=200_000)
     model.save(f"roller_ball.zip")
 
     env.close()

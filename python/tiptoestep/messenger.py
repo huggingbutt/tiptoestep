@@ -82,6 +82,7 @@ class Messenger:
 
     def check(self):
         # Check for the arrival of the observation message.
+        # todo
         # 'agent_id' needs to be added to mark the observations seen by an agent in subsequent version.
         return self.mm[:1] == b'\x01'
 
