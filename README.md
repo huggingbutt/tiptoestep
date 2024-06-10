@@ -1,5 +1,8 @@
 # Tiptoe Step
 This project aims to streamline the creation of reinforcement learning environments. I intend to add support for more software(Unreal Engine, Godot, FreeCAD) to enhance its functionality.
+The current version implements IPC(inter-process communication) using shared memory (mmap package in Python, 'System.IO.MemoryMappedFiles' in C#). 
+It has not passed testing on Windows system, and future versions may use a different method.
+
 
 ## Installation
 
