@@ -1,31 +1,33 @@
-import os
-import mmap
-from typing import Tuple
+import socket
+import struct
+import select
 import numpy as np
 from .proto import Message, MessageSerializer, MessageType, StepType
 
 
 class Messenger:
-    def __init__(self, filename, size=1024 * 16, pid=0, env_id=0):
-        if os.path.exists(filename):
-            os.remove(filename)
-        self.filename = filename
-        self.size = size
+    def __init__(self, pid=0, env_id=0, host=None, port=None):
         self.pid = pid
         self.env_id = env_id
-        # Create and/or open the memory-mapped file
-        with open(self.filename, "wb") as f:
-            f.seek(self.size - 1)
-            f.write(b'\x00')
-        self.file = open(self.filename, "r+b")
-        self.mm = mmap.mmap(self.file.fileno(), self.size)
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.port: int = port if port else 10086 + pid
+        self.host: str = host if host else '127.0.0.1'
+        self.server_socket.bind((self.host, self.port))
+        self.server_socket.listen(1)
+        self.client_socket: socket.socket = None
+
+    def listen(self):
+        # print(f"Server is listening on {self.host}:{self.port}")
+        self.client_socket, addr = self.server_socket.accept()
+        # print(f"Connection from {addr}")
 
     def send(self, msg: Message):
-        self.mm[:1] = b'\x07'  # Python side is writing data.
-        data = MessageSerializer.serialize(msg)
-        self.mm[1: 5] = np.int32(len(data)).tobytes()
-        self.mm[5: 5+len(data)] = data
-        self.mm[: 1] = b'\x03'  # A new message (action message) form Python is available
+        data = struct.pack('c', b'\x07')
+        msg_bytes = MessageSerializer.serialize(msg)
+        data += np.int32(len(msg_bytes)).tobytes()
+        data += msg_bytes
+        data += struct.pack('c', b'\x03')
+        self.client_socket.send(data)
 
     def send_action(self, agent_id, step_id, action, cmds=None):
         msg = Message()
@@ -66,12 +68,21 @@ class Messenger:
         msg.cmds = cmds
         self.send(msg)
 
+    def check(self):
+        readable, _, _ = select.select([self.client_socket], [], [], 0)
+        return bool(readable)
+
     def receive(self, check_obs=False):
-        bytes_num_b = self.mm[1:5]
-        bytes_num = np.frombuffer(bytes_num_b, dtype=np.int32)[0]
-        msg_b = self.mm[5:5 + bytes_num]
-        msg = MessageSerializer.deserialize(msg_b)
-        self.mm[:1] = b'\x04'  # Observation message from C# has been received.
+        while not self.check():
+            pass
+        flag = self.client_socket.recv(1)
+        data_length_bytes = self.client_socket.recv(4)
+        data_length = struct.unpack('I', data_length_bytes)[0]
+        msg_bytes = self.client_socket.recv(data_length)
+        over_flag = self.client_socket.recv(1)
+
+        assert flag[0] == 0x06 and over_flag[0] == 0x01, "Incorrect data format received from C#."
+        msg = MessageSerializer.deserialize(msg_bytes)
 
         if check_obs:
             if not (msg.message_type == MessageType.Observation.value
@@ -80,26 +91,9 @@ class Messenger:
 
         return msg
 
-    def check(self):
-        # Check for the arrival of the observation message.
-        # todo
-        # 'agent_id' needs to be added to mark the observations seen by an agent in subsequent version.
-        return self.mm[:1] == b'\x01'
-
-    def check_accident(self, raise_=False) -> Tuple[bool, str]:
-        if self.mm[:1] == b'\x05':
-            message = self.receive()
-            if (message['message_type'] == MessageType.Control.value
-                    and message['step_type'] == StepType.End.value):
-                if raise_:
-                    raise RuntimeError("Env is stopped.")
-                return True, "Env is stopped."
-        return False, ""
-
     def is_ready(self):
         while not self.check():
             pass
-
         msg = self.receive()
         if (msg.message_type == MessageType.Control.value
                 and msg.step_type == StepType.Ready.value):
@@ -108,8 +102,9 @@ class Messenger:
             return False
 
     def close(self):
-        self.mm.close()
-        self.file.close()
+        self.client_socket.close()
+        self.server_socket.close()
 
-        if os.path.exists(self.filename):
-            os.remove(self.filename)
+    def __del__(self):
+        # print("Destroying Messenger object.")
+        self.close()

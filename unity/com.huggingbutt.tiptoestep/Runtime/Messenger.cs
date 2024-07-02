@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.IO.MemoryMappedFiles;
+using System.Net.Sockets;
 
 // message protocol flag
 // 0x01 produced by C#
@@ -18,67 +19,70 @@ namespace tiptoestep
     {
         private MemoryMappedFile mmf;
         private long size;
+        private TcpClient client;
+        private NetworkStream stream;
 
-        public Messenger(string fileName, long size = 1024 * 16)
+        public Messenger(string host, string port, long size = 1024 * 16)
         {
             this.size = size;
-            mmf = MemoryMappedFile.CreateFromFile(fileName, FileMode.OpenOrCreate, null, size);
+            try
+            {
+                client = new TcpClient(host, int.Parse(port));
+                stream = client.GetStream();
+            }
+            catch (ArgumentNullException e)
+            {
+                Console.WriteLine($"ArgumentNullException: {e}");
+            }
+            catch (SocketException e)
+            {
+                Console.WriteLine($"SocketException: {e}");
+            }
         }
 
         public void Send(Message msg)
         {
-            if (mmf == null) throw new Exception("The MemoryMappedFile object has not been instantiated.");
-            // Set writing flag
-            using (var accessor = mmf.CreateViewAccessor(0, 1))
+            using (var stream = new MemoryStream())
             {
-                accessor.WriteArray<byte>(0, new byte[1] { 0x06 }, 0, 1);
+                using (var writer = new BinaryWriter(stream))
+                {
+                    writer.Write((byte)0x06); ; // Set writing flag
+                    byte[] msgBytes = MessageSerializer.Serialize(msg);
+                    writer.Write(BitConverter.GetBytes(msgBytes.Length));
+                    
+                    writer.Write(msgBytes);
+                    writer.Write((byte)0x01); // Set write over flag.
+                }
+                byte[] send_data = stream.ToArray();
+                this.stream.Write(send_data);
             }
 
-            // Write bytes
-            byte[] msgBytes = MessageSerializer.Serialize(msg);
-            using (var accessor = mmf.CreateViewAccessor(1, 4 + msgBytes.Length))
-            {
-                accessor.WriteArray<byte>(0, BitConverter.GetBytes(msgBytes.Length), 0, 4);
-                accessor.WriteArray<byte>(4, msgBytes, 0, msgBytes.Length);
-            }
-
-            // Set write over flag.
-            using (var accessor = mmf.CreateViewAccessor(0, 1))
-            {
-                accessor.WriteArray<byte>(0, new byte[1] { 0x01 }, 0, 1);
-            }
         }
 
         public Message Receive()
         {
-            int dataLength = 0;
-            using (var accessor = mmf.CreateViewAccessor(1, 4))
-            {
-                dataLength = accessor.ReadInt32(0);
-            }
+            byte[] flag = new byte[1];
+            this.stream.Read(flag, 0, 1);
 
-            Message msg;
-            using (var accessor = mmf.CreateViewAccessor(5, dataLength))
-            {
-                byte[] msgBytes = new byte[dataLength];
-                accessor.ReadArray<byte>(0, msgBytes, 0, dataLength);
-                msg = MessageSerializer.Deserialize(msgBytes);
-            }
+            byte[] dataLengthBytes = new byte[4];
+            this.stream.Read(dataLengthBytes, 0, 4);
+            int dataLength = BitConverter.ToInt32(dataLengthBytes);
 
-            using (var accessor = mmf.CreateViewAccessor(0, 1)) // Consumed by C#
-            {
-                accessor.WriteArray<byte>(0, new byte[1] { 0x02 }, 0, 1);
-            }
+            byte[] msgBytes = new byte[dataLength];
+            this.stream.Read(msgBytes, 0, dataLength);
 
+            byte[] overFlag = new byte[1];
+            this.stream.Read(overFlag, 0, 1);
+
+            Message msg = null;
+            if (flag[0] != 0x07 || overFlag[0] != 0x03) throw new Exception("Incorrect data format received from Python.");
+            msg = MessageSerializer.Deserialize(msgBytes);
             return msg;
         }
 
         public bool Check() // Check if the action message has arrived.
         {
-            using (var accessor = mmf.CreateViewAccessor(0, 1))
-            {
-                return accessor.ReadByte(0) == 0x03;
-            }
+            return this.stream.DataAvailable;
         }
 
         public void SendReady(uint env_id, uint pid)
@@ -114,7 +118,10 @@ namespace tiptoestep
 
         public void Dispose()
         {
-            mmf?.Dispose();
+            this.stream.Dispose();
+            this.stream.Close();
+            this.client.Dispose();
+            this.client.Close();
         }
     }
 }

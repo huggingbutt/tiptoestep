@@ -13,7 +13,8 @@ namespace tiptoestep
     {
         public uint pid;
         public uint env_id;
-        public string debug_mmf;
+        public string host = "127.0.0.1";
+        public string port = "10086";
         public Text textPlaceholder;
         bool renderFlag = false;
         private Message tempMsg; // todo? For all 'PostXXXX' function. 
@@ -21,7 +22,6 @@ namespace tiptoestep
         Messenger messenger;
         public Agent agent;
 
-        string mmf;
         int actionFrameCount = 0;
         uint stepCount = 0;
 
@@ -43,9 +43,13 @@ namespace tiptoestep
                 {
                     args["time_scale"] = arg.Substring(10 + 2);
                 }
-                if (arg.StartsWith("-mmf="))
+                if (arg.StartsWith("-host="))
                 {
-                    args["mmf"] = arg.Substring(3 + 2);
+                    args["host"] = arg.Substring(4 + 2);
+                }
+                if (arg.StartsWith("-port="))
+                {
+                    args["port"] = arg.Substring(4 + 2);
                 }
             }
             return args;
@@ -55,12 +59,6 @@ namespace tiptoestep
         {
             Physics.simulationMode = SimulationMode.Script;
 #if UNITY_EDITOR 
-            // 
-            if (this.debug_mmf != null && this.debug_mmf.Length > 0)
-                this.mmf = this.debug_mmf;
-            else
-                throw new Exception("'mmf' file cannot be empty during execution in Editor.");
-
 #else
 
             string[] args = Environment.GetCommandLineArgs();
@@ -68,7 +66,8 @@ namespace tiptoestep
             if (arguments.Count <= 0
                 || !arguments.ContainsKey("pid")
                 || !arguments.ContainsKey("env_id")
-                || !arguments.ContainsKey("mmf")
+                || !arguments.ContainsKey("host")
+                || !arguments.ContainsKey("port")
                 ) throw new ArgumentException("Startup argument error");
 
             if (arguments.ContainsKey("time_scale"))
@@ -78,11 +77,15 @@ namespace tiptoestep
 
             this.pid = uint.Parse(arguments["pid"]);
             this.env_id = uint.Parse(arguments["env_id"]);
-            this.mmf = arguments["mmf"];
+            this.host = arguments["host"];
+            this.port = arguments["port"];
 
 #endif
-            
-            messenger = new Messenger(this.mmf);
+            Debug.Log($"pid: {this.pid}");
+            Debug.Log($"env_id: {this.env_id}");
+            Debug.Log($"host: {this.host}");
+            Debug.Log($"port: {this.port}");
+            messenger = new Messenger(this.host, this.port);
         }
 
         void WriteToLogFile(string message)
@@ -102,6 +105,7 @@ namespace tiptoestep
             WriteToLogFile($"{this.pid}_{this.env_id} Sending ready.");
 #endif
             this.messenger.SendReady(this.env_id, this.pid);
+
 #if LOG_TO_FILE
             WriteToLogFile($"{this.pid}_{this.env_id} Sent ready.");
 #endif
@@ -183,6 +187,9 @@ namespace tiptoestep
             if (this.messenger != null) this.messenger?.Dispose();
         }
 
+        public void OnDestroy()
+        {
+            this.messenger.Dispose();
+        }
     }
-
 }
