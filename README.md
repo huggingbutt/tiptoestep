@@ -61,7 +61,7 @@ public class MyObservation : Observation
     public float distance { get; set; }
 }
 ```
-We want the policy to receive all the information except for the distance, so we can define the `transfrom_fun` as follows:
+We want the policy to receive all the information except for the distance, so we can define the `transform_fun` as follows:
 ```python
 def transform_fun(obs):
   return np.array([
