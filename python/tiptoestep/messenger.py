@@ -69,12 +69,16 @@ class Messenger:
         self.send(msg)
 
     def check(self):
+        """
+        Check if there is data available to read from the socket.
+        :return:
+        """
         readable, _, _ = select.select([self.client_socket], [], [], 0)
         return bool(readable)
 
     def receive(self, check_obs=False):
-        while not self.check():
-            pass
+        # while not self.check():
+        #     pass
         flag = self.client_socket.recv(1)
         data_length_bytes = self.client_socket.recv(4)
         data_length = struct.unpack('I', data_length_bytes)[0]
@@ -92,8 +96,8 @@ class Messenger:
         return msg
 
     def is_ready(self):
-        while not self.check():
-            pass
+        # while not self.check():
+        #     pass
         msg = self.receive()
         if (msg.message_type == MessageType.Control.value
                 and msg.step_type == StepType.Ready.value):
