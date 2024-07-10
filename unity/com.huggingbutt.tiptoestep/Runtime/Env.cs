@@ -13,7 +13,7 @@ namespace tiptoestep
     {
         public uint pid;
         public uint env_id;
-        public string host = "127.0.0.1";
+        public string host = "localhost";
         public string port = "10086";
         public Text textPlaceholder;
         bool renderFlag = false;
@@ -57,6 +57,7 @@ namespace tiptoestep
 
         private void Awake()
         {
+            Debug.Log("Awake()...");
             Physics.simulationMode = SimulationMode.Script;
 #if UNITY_EDITOR 
 #else
@@ -139,6 +140,7 @@ namespace tiptoestep
             {
                 Physics.Simulate(Time.fixedDeltaTime);
                 CollectObservation(actionFrameCount);
+                this.agent.PostCollect();
                 this.renderFlag = false;
             }
             else
@@ -163,7 +165,7 @@ namespace tiptoestep
                 {
                     //Debug.Log(actionMsg.cmds);
                     this.agent.PreReset(actionMsg.cmds);
-                    this.agent.Reset();
+                    this.agent.Reset(actionMsg.cmds);
                     this.agent.PostReset(actionMsg.cmds);
                     this.stepCount = 0;
                     CollectObservation(this.actionFrameCount);

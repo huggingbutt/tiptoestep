@@ -170,5 +170,5 @@ class Env(gym.Env):
             self.process.terminate()
             self.process.wait()
 
-    def __del__(self):
-        self.close()
+    # def __del__(self):
+    #     self.close()

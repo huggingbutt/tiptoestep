@@ -16,7 +16,7 @@ namespace tiptoestep
         public virtual void PostCollect() { }
 
         public virtual void PreReset(Dictionary<string, string> cmds) { }
-        public abstract void Reset();
+        public abstract void Reset(Dictionary<string, string> cmds);
         public virtual void PostReset(Dictionary<string, string> cmds) { }
 
     }
