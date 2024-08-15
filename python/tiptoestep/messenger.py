@@ -109,6 +109,6 @@ class Messenger:
         self.client_socket.close()
         self.server_socket.close()
 
-    def __del__(self):
-        # print("Destroying Messenger object.")
-        self.close()
+    # def __del__(self):
+    #     # print("Destroying Messenger object.")
+    #     self.close()
