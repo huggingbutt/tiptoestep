@@ -33,7 +33,10 @@ class Env(gym.Env):
                  time_scale=1,
                  max_steps=10_000,
                  exe_file=None,
-                 verbose=0):
+                 verbose=0,
+                 batchmode=False,
+                 nographics=False
+                 ):
         super(Env, self).__init__()
         self.pid = pid
         self.env_id = env_id
@@ -54,6 +57,8 @@ class Env(gym.Env):
         self.control_fun = control_fun
         self.transform_fun = transform_fun
         self.verbose = verbose
+        self.batchmode = batchmode
+        self.nographics = nographics
         self.host = host
         self.port = port
 
@@ -79,6 +84,10 @@ class Env(gym.Env):
                              f"-port={self.messenger.port}"]
             if time_scale != 1:
                 self.exe_file.append(f"-time_scale={time_scale}")
+            if self.batchmode:
+                self.exe_file.append("-batchmode")
+            if self.nographics:
+                self.exe_file.append("-nographics")    
             self.process = subprocess.Popen(self.exe_file, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         self.listen_thread.join()
