@@ -3,7 +3,7 @@ import subprocess
 import numpy as np
 import gymnasium as gym
 from collections import namedtuple
-from typing import Any, Union, Callable, Dict, Type
+from typing import Any, Union, Callable, Dict, Type, Optional
 from .action import ContinuousAction, CategoricalAction
 from .agent import Agent
 from .proto import Message
@@ -27,6 +27,7 @@ class Env(gym.Env):
                  fun_code=None,
                  host=None,
                  port=None,
+                 timeout: Optional[float] = None,
                  pid=0,
                  env_id=0,
                  agent: Agent = None,
@@ -70,7 +71,7 @@ class Env(gym.Env):
         self.control_fun = control_fun if control_fun is not None else globals()['control_fun']
         self.transform_fun = transform_fun if transform_fun is not None else globals()['transform_fun']
 
-        self.messenger = Messenger(pid, env_id, host, port)
+        self.messenger = Messenger(pid, env_id, host, port, timeout=timeout)
 
         self.exe_file = None
         self.process = None
@@ -88,7 +89,8 @@ class Env(gym.Env):
                 self.exe_file.append("-batchmode")
             if self.nographics:
                 self.exe_file.append("-nographics")    
-            self.process = subprocess.Popen(self.exe_file, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            # Redirect output to avoid PIPE buffer deadlocks during long runs
+            self.process = subprocess.Popen(self.exe_file, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
         self.listen_thread.join()
         # print(f"Connection from {self.messenger.client_socket}")
@@ -171,13 +173,26 @@ class Env(gym.Env):
 
     def close(self):
         self.messenger.send_control(self.agent.id, self.step_id, 'end')
+        # Close sockets regardless of whether a process was launched
+        try:
+            self.messenger.close()
+        except Exception:
+            pass
 
         if self.exe_file is not None and self.process is not None:
-            stdout, stderr = self.process.communicate()
-            if self.verbose > 0:
-                print(f"Env {self.pid}_{self.env_id} {stdout.decode()} {stderr.decode()}")
-            self.process.terminate()
-            self.process.wait()
+            # Attempt graceful termination, then force kill if needed
+            try:
+                self.process.terminate()
+                self.process.wait(timeout=5)
+            except Exception:
+                try:
+                    self.process.kill()
+                except Exception:
+                    pass
+                try:
+                    self.process.wait(timeout=5)
+                except Exception:
+                    pass
 
     # def __del__(self):
     #     self.close()

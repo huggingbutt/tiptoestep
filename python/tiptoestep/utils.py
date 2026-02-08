@@ -59,8 +59,8 @@ class StrDictionarySerializer:
                 value_bytes = value.encode('utf-8')
 
                 # Write the length of the key and value
-                byte_stream.write(struct.pack('I', len(key_bytes)))
-                byte_stream.write(struct.pack('I', len(value_bytes)))
+                byte_stream.write(struct.pack('<I', len(key_bytes)))
+                byte_stream.write(struct.pack('<I', len(value_bytes)))
 
                 # Write the actual key and value bytes
                 byte_stream.write(key_bytes)
@@ -72,16 +72,24 @@ class StrDictionarySerializer:
     def deserialize(byte_array):
         dictionary = {}
         with io.BytesIO(byte_array) as byte_stream:
+            MAX_KV_BYTES = 1 * 1024 * 1024  # 1MB per key/value combined safety cap
             while True:
                 lengths = byte_stream.read(8)
                 if not lengths:
                     break
 
-                key_length, value_length = struct.unpack('II', lengths)
+                if len(lengths) < 8:
+                    raise ValueError("Malformed dictionary blob: incomplete length header")
+
+                key_length, value_length = struct.unpack('<II', lengths)
+                if key_length < 0 or value_length < 0 or (key_length + value_length) > MAX_KV_BYTES:
+                    raise ValueError("Malformed dictionary blob: unreasonable key/value length")
 
                 # Read the key and value bytes
                 key_bytes = byte_stream.read(key_length)
                 value_bytes = byte_stream.read(value_length)
+                if len(key_bytes) != key_length or len(value_bytes) != value_length:
+                    raise ValueError("Malformed dictionary blob: truncated key/value bytes")
 
                 # Convert bytes back to strings and add to the dictionary
                 key = key_bytes.decode('utf-8')

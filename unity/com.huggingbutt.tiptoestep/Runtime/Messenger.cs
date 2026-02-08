@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.IO.MemoryMappedFiles;
 using System.Net.Sockets;
 
 // message protocol flag
@@ -17,10 +16,10 @@ namespace tiptoestep
 {
     public class Messenger : IDisposable
     {
-        private MemoryMappedFile mmf;
         private long size;
         private TcpClient client;
         private NetworkStream stream;
+        private const int MAX_FRAME_BYTES = 10 * 1024 * 1024; // 10MB safety cap
 
         public Messenger(string host, string port, long size = 1024 * 16)
         {
@@ -28,7 +27,10 @@ namespace tiptoestep
             try
             {
                 client = new TcpClient(host, int.Parse(port));
+                client.NoDelay = true; // Disable Nagle for low-latency small packets
                 stream = client.GetStream();
+                // Optionally set timeouts (can be adjusted if needed)
+                try { stream.ReadTimeout = 30000; stream.WriteTimeout = 30000; } catch {}
             }
             catch (ArgumentNullException e)
             {
@@ -54,25 +56,38 @@ namespace tiptoestep
                     writer.Write((byte)0x01); // Set write over flag.
                 }
                 byte[] send_data = stream.ToArray();
-                this.stream.Write(send_data);
+                this.stream.Write(send_data, 0, send_data.Length);
             }
 
         }
 
+        private byte[] ReadExact(int n)
+        {
+            byte[] buffer = new byte[n];
+            int offset = 0;
+            while (offset < n)
+            {
+                int read = this.stream.Read(buffer, offset, n - offset);
+                if (read <= 0)
+                {
+                    throw new IOException("Socket closed while reading data");
+                }
+                offset += read;
+            }
+            return buffer;
+        }
+
         public Message Receive()
         {
-            byte[] flag = new byte[1];
-            this.stream.Read(flag, 0, 1);
-
-            byte[] dataLengthBytes = new byte[4];
-            this.stream.Read(dataLengthBytes, 0, 4);
-            int dataLength = BitConverter.ToInt32(dataLengthBytes);
-
-            byte[] msgBytes = new byte[dataLength];
-            this.stream.Read(msgBytes, 0, dataLength);
-
-            byte[] overFlag = new byte[1];
-            this.stream.Read(overFlag, 0, 1);
+            byte[] flag = ReadExact(1);
+            byte[] dataLengthBytes = ReadExact(4);
+            int dataLength = BitConverter.ToInt32(dataLengthBytes, 0);
+            if (dataLength < 0 || dataLength > MAX_FRAME_BYTES)
+            {
+                throw new InvalidDataException($"Payload length out of bounds: {dataLength}");
+            }
+            byte[] msgBytes = ReadExact(dataLength);
+            byte[] overFlag = ReadExact(1);
 
             Message msg = null;
             if (flag[0] != 0x07 || overFlag[0] != 0x03) throw new Exception("Incorrect data format received from Python.");
@@ -118,10 +133,10 @@ namespace tiptoestep
 
         public void Dispose()
         {
-            this.stream.Dispose();
-            this.stream.Close();
-            this.client.Dispose();
-            this.client.Close();
+            try { this.stream?.Dispose(); } catch {}
+            try { this.stream?.Close(); } catch {}
+            try { this.client?.Dispose(); } catch {}
+            try { this.client?.Close(); } catch {}
         }
     }
 }

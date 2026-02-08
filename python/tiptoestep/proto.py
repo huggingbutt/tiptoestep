@@ -75,37 +75,38 @@ def observation_to_dict(byte_array) -> Dict[str, Union[np.float32, bool]]:
 class MessageSerializer:
     @staticmethod
     def serialize(msg: Message) -> bytes:
-        data  = struct.pack('I', np.uint32(msg.pid))
-        data += struct.pack('I', np.uint32(msg.env_id))
-        data += struct.pack('I', np.uint32(msg.agent_id))
-        data += struct.pack('I', np.uint32(msg.step_id))
-        data += struct.pack('I', np.uint32(msg.obs_frame_id))
-        data += struct.pack('I', np.uint32(msg.act_frame_id))
-        data += struct.pack('?', np.uint32(msg.silent))
-        data += struct.pack('i', np.uint32(msg.message_type))
-        data += struct.pack('i', np.uint32(msg.step_type))
+        # Explicit little-endian packing for portability
+        data  = struct.pack('<I', int(msg.pid))
+        data += struct.pack('<I', int(msg.env_id))
+        data += struct.pack('<I', int(msg.agent_id))
+        data += struct.pack('<I', int(msg.step_id))
+        data += struct.pack('<I', int(msg.obs_frame_id))
+        data += struct.pack('<I', int(msg.act_frame_id))
+        data += struct.pack('<?', bool(msg.silent))
+        data += struct.pack('<i', int(msg.message_type))
+        data += struct.pack('<i', int(msg.step_type))
 
         if msg.action is None:
-            data += struct.pack('i', 0)
+            data += struct.pack('<i', 0)
         else:
             action_bytes = ActionSerializer.serialize(msg.action)
-            data += struct.pack('i', len(action_bytes))
+            data += struct.pack('<i', len(action_bytes))
             data += action_bytes
 
         # print(len(data))
 
         if msg.cmds is None:
-            data += struct.pack('i', 0)
+            data += struct.pack('<i', 0)
         else:
             cmds_bytes = StrDictionarySerializer.serialize(msg.cmds)
             # print(len(cmds_bytes))
-            data += struct.pack('i', len(cmds_bytes))
+            data += struct.pack('<i', len(cmds_bytes))
             data += cmds_bytes
 
         if len(msg.observation) <= 0:
-            data += struct.pack('i', 0)
+            data += struct.pack('<i', 0)
         else:
-            data += struct.pack('i', len(msg.observation))
+            data += struct.pack('<i', len(msg.observation))
             data += msg.observation
 
         # print(len(data))
@@ -114,33 +115,40 @@ class MessageSerializer:
 
     @staticmethod
     def deserialize(data: bytes):
+        MAX_FRAME_BYTES = 10 * 1024 * 1024  # 10MB safety cap
         msg = Message()
-        msg.pid = np.uint32(struct.unpack('I', data[0:4])[0])
-        msg.env_id = np.uint32(struct.unpack('I', data[4:8])[0])
-        msg.agent_id = np.uint32(struct.unpack('I', data[8:12])[0])
-        msg.step_id = np.uint32(struct.unpack('I', data[12:16])[0])
-        msg.obs_frame_id = np.uint32(struct.unpack('I', data[16:20])[0])
-        msg.act_frame_id = np.uint32(struct.unpack('I', data[20:24])[0])
-        msg.silent = np.uint32(struct.unpack('?', data[24:25])[0])
-        msg.message_type = np.int32(struct.unpack('i', data[25:29])[0])
-        msg.step_type = np.int32(struct.unpack('i', data[29:33])[0])
+        msg.pid = np.uint32(struct.unpack('<I', data[0:4])[0])
+        msg.env_id = np.uint32(struct.unpack('<I', data[4:8])[0])
+        msg.agent_id = np.uint32(struct.unpack('<I', data[8:12])[0])
+        msg.step_id = np.uint32(struct.unpack('<I', data[12:16])[0])
+        msg.obs_frame_id = np.uint32(struct.unpack('<I', data[16:20])[0])
+        msg.act_frame_id = np.uint32(struct.unpack('<I', data[20:24])[0])
+        msg.silent = bool(struct.unpack('<?', data[24:25])[0])
+        msg.message_type = int(struct.unpack('<i', data[25:29])[0])
+        msg.step_type = int(struct.unpack('<i', data[29:33])[0])
 
         offset = 33
-        action_len = np.int32(struct.unpack('i', data[offset:offset + 4])[0])
+        action_len = int(struct.unpack('<i', data[offset:offset + 4])[0])
         offset += 4
         if action_len > 0:
+            if action_len > MAX_FRAME_BYTES or offset + action_len > len(data):
+                raise ValueError("Action blob length out of bounds")
             msg.action = ActionSerializer.deserialize(data[offset:offset + action_len])
             offset += action_len
 
-        cmds_len = np.int32(struct.unpack('i', data[offset:offset + 4])[0])
+        cmds_len = int(struct.unpack('<i', data[offset:offset + 4])[0])
         offset += 4
         if cmds_len > 0:
+            if cmds_len > MAX_FRAME_BYTES or offset + cmds_len > len(data):
+                raise ValueError("Cmds blob length out of bounds")
             msg.cmds = StrDictionarySerializer.deserialize(data[offset:offset + cmds_len])
             offset += cmds_len
 
-        obs_len = np.int32(struct.unpack('i', data[offset:offset + 4])[0])
+        obs_len = int(struct.unpack('<i', data[offset:offset + 4])[0])
         offset += 4
         if obs_len > 0:
+            if obs_len > MAX_FRAME_BYTES or offset + obs_len > len(data):
+                raise ValueError("Observation blob length out of bounds")
             msg.observation = observation_to_dict(data[offset:offset + obs_len])
 
         return msg
@@ -159,7 +167,12 @@ class MessageSerializer:
         str_ += f"step_type : {msg.step_type}\n"
         str_ += f"action : {msg.action}\n"
         str_ += f"cmds : {msg.cmds}\n"
-        str_ += f"observation : {json.dumps(observation_to_dict(msg.observation))}"
+        if isinstance(msg.observation, (bytes, bytearray)):
+            obs_str = json.dumps(observation_to_dict(msg.observation))
+        else:
+            obs_str = json.dumps(msg.observation)
+        str_ += f"observation : {obs_str}"
+        return str_
 
 
 def message_serializer(obj):
